@@ -1,0 +1,174 @@
+
+---
+title: Yelp Project 10 Capstone - An Analysis Report of the Yelp Data on Ambience
+  and Users
+author: "Phil Burdi"
+date: "Thursday, October 15, 2015"
+output: html_document
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+library(jsonlite)
+library(dplyr)
+library(ggplot2)
+load("pre-load_env.RData")
+options(digits = 3)
+set.seed(1111)
+# using multiplot function from R cookbook
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+#### Title
+
+##### Yelp Ambience Marketing Study
+
+#### Introduction
+###### In there a correlation between ambience in lodging establishments and attributes to the users who post these reviews?  My Planned investigation and report work centered around the Yelp data of the businesses "Ambience" data frame (located in the "yelp_academic_dataset_business.json" data, but after determining there was insufficient data for testing the correlation with lodging (motels/hotels).  The testing data **was** available using restaurants and the decision was made to switch the category.  The first focus was the business that provided ambience data and this lead to the user that created a review to determine a targeted audience for a specific ambience in that type of food establishment.  The analysis will look at other data files for user tips, checkins, reviews, and profile to determine if a correlation exists with attribute of the user.
+
+###### The analysis will evolve in discovery to new areas uncovered in the analysis.
+
+#### Methods & Data
+
+###### The data-file yelp_academic_checkin.json was not used for this analysis.  Graphs will be done using plot and ggplot2.  Due to the heavy (RAM) memory requirements and processing time, all pre-processing was alo done earlier and saved in the global environment using the **pre-load_env.RData** file.  Details on the pre-processed code can be found in the **pre-load_env.R file**. The data loaded into the pre-processed environment includes: 
+######   1. The yelp_academic_dataset_user.json - pre-read and entered into the environment as **juser**.
+######   2. The yelp_academic_dataset_tip.json - pre-read and pre-process in the environment as **njtips**.
+######   3. The yelp_academic_dataset_review.json - pre-read and pre-process in the            environment as **nreviews**.
+######   4. The yelp_academic_dataset_business.json - pre-read and entered into the environment as **jbusiness**.
+
+###### To begin this analysis the methods using **R** and **Rstudio** are included in this work.  Using *grepl* for example, to identify all the categories in the hotel industry and then later for restaurants.  Matching this with the those in the ambience data frame.
+
+###### Once the restaurant category was extracted and after processing only those businesses that have data in the ambience section.  We'll build another data-frame just for this group.  Once examined, we continue to drill down into the data use a selected ambience called *trendy*.  It doesn't contain the most data of the least data but the number of observations is significant and can be used to map (first in charts) for relations in density to tips and reviews, but also to examine against the user data.
+
+###### Our next stop is the **bus_map** data-frame, this includes the *business ID*, the number of *tips* and the number of *reviews*.  Although our focus is not on the business, this produces a wealth of information that could indicate the amount of traffic from clients.  However, for our purposes we are looking for patterns in *tips vs. reviews*, *tips vs. business*, and *reviews vs. business*.  Overlapping patterns are evident in the *tips vs. reviews*, we'll explore that later in this results analysis.
+
+###### Our focus now turns to the users, we'll examine users by cross referencing the *business_ids* into the nreviews and ntips data file to get the *user_id*'s for all tip posters and reviewers.  We'll then look and compare the top 100 trendy users (reviewing and providing tips) to the overall user population in the Yelp user's data-set.
+
+###### One area the Yelp data covers very well is the ability of the user to connect with others in their reviews, profile, tips, etc.  These fields include Fans, Friends, and a multitude of compliment fields.  To further dive into popularity of the user, we'll focus on the *Fans* attribute in the **juser** data. Once the data is graphed, we begin to look at the average number of fans for the "typical" user and those who are reviewing and providing tips to the trendy restaurant.
+
+###### Finally we perform a linear model for correlation testing between the user *review_counts* and the number of *Fans* using "lm" and "with" on the tip_posters & reviewers, graphing the data help to show the significance.
+
+#### Results
+```{r, echo=FALSE}
+lod <- as.matrix(dim(lodge_amb))
+```
+###### In reviewing the lodging data for ambience, even the highest number of observations is not enough to proceed to a full analysis. A total of `r lod[1,1]` observervations in all attributes of the ambience data frame.  Moving on to examination of ambience in the restaurant reviews.
+```{r, echo=FALSE}
+rom <- as.matrix(dim(rest_amb[(rest_amb$romantic == "TRUE"), ]))
+ups <- as.matrix(dim(rest_amb[(rest_amb$upscale == "TRUE"), ]))
+cas <- as.matrix(dim(rest_amb[(rest_amb$casual == "TRUE"), ]))
+tre <- as.matrix(dim(rest_amb[(rest_amb$trendy == "TRUE"), ]))
+tou <- as.matrix(dim(rest_amb[(rest_amb$touristy == "TRUE"), ]))
+```
+###### Significantly more data is available for ambience under restaurant categories.  For example the romantic *attribute* has `r rom[1,1]` observations and the *upscale* has `r ups[1,1]`, all categories have at least `r ups[1,1]` observations with the exception of *touristy* with only `r tou[1,1]`.  The most data is in *causal* attribute with `r cas[1,1]` observations. 
+
+###### For this exercise, if we look at the dimensions of the *trendy* attribute it contains `r tre[1,1]` observation.  We'll make that attribute the focal point of the study and create a business map data file around the business, tips, and reviews for trendy food establishments.
+```{r}
+summary(bus_map)
+```
+```{r plot1, fig.width=6, fig.height=3, message=FALSE, echo=FALSE}
+plot(bus_map)
+```
+
+###### Here is the result plot of *bus_map*, it gives an overview of the relations between businesses, tips, and reviews.  The data shows some clustering around tips & reviews indicating users providing both.  
+
+###### Graph (1) below is looking at the **12,554** observations of users providing tips on trendy restaurants.  In graph (2) we are looking at **55,067** observations of users providing reviews on trendy restaurants.  Graph (3) is looking at users providing reviews on trendy restaurants.  Finally, in graph (4) we look at each trendy business and the frequency that the reviews come in.  We again see a concentration of the distribution less dense and more scattered.  In conclusion, the data supports the majority of users post tips in the single digits and reviews in the lower double digits.  While trendy businesses recieve tips in the double digit range and reviews in the triple digits. 
+```{r, message=FALSE, echo=FALSE}
+par(mfrow=c(2,2))
+plot(user_plot_tips$Freq, main="(1)", xlab="Users", col.lab=rgb(0,0.5,0), ylab="Frequency (Tips)", col.lab=rgb(0,0.5,0))
+plot(business_plot_tips$Freq, main="(2)", xlab="Businesses", col.lab=rgb(0,0.5,0), ylab="Frequency (Tips)", col.lab=rgb(0,0.5,0))
+plot(user_plot_reviews$Freq, main="(3)", xlab="Users", col.lab=rgb(0,0.5,0), ylab="Frequency (Reviews)", col.lab=rgb(0,0.5,0))
+plot(business_plot_reviews$Freq, main="(4)",xlab="Businesses", col.lab=rgb(0,0.5,0), ylab="Frequency (Reviews)", col.lab=rgb(0,0.5,0))
+```
+
+###### On this **Reviews vs. Tips** chart, the data demonstrates users providing more reviews than tips on the each of the trendy food establishments.  The **Tip vs. Review on Fans** chart includes the **55,067** reviews and **12,554** tips, almost (4) times the number of reviews recorded to tips.  The graph uses the mean of reviews for our trendy reviewers (green) and tip posters (red), the number of fans increases and drops off sharply around 800 (blue line).
+```{r plot2, fig.width=6, fig.height=3, echo=FALSE, message=FALSE}
+p1 <- ggplot(gdata, aes(user_id, y=value, color=varible)) +
+  labs(title="Reviews vs. Tips") +
+  labs(x="Users", y="Number of Tips & Reviews") +
+  geom_point(aes(y=Freq.x, col="reviews")) +
+  geom_point(aes(y=Freq.y, col="tips")) 
+p2 <- ggplot() + 
+  geom_line(data=tip_sum, aes(x=fans, y=mean), color='green') + 
+  geom_line(data=review_sum, aes(x=fans, y=mean), color='red') +
+  geom_vline(xintercept = 800, colour='blue') +
+  labs(x = "Number of Fans") +
+  labs(y = "Mean of Reviews") +
+  labs(title = "Tip vs. Review on Fans")
+multiplot(p1, p2, cols=2)
+ggsave(file="p2.png")
+```
+
+######  To investigate the user fan's correlation further, we'll build a linear model.  First here is a summary of the reviewers and details of the *review_profile* model file.  Build the model and look at the top 5 count relations.  Now perform the correlation test set with a 95% confidence level.  
+```{r}
+summary(review_profile)
+lmodel <-aggregate(fans~review_count, data = review_profile, mean)
+head(lmodel, 5)
+with(review_profile, cor.test(review_count, fans, alternative="greater", conf.level=.95))
+```
+###### A positive significance of .5996685. 
+
+###### Now for the tip posters using the *tip_profile* in the background.  Build the model again for tip posters and post it in the plot.  Plot the positive correlated result for tip posters and for reviewers now with *review count* vs. *fans*.
+```{r, echo=FALSE}
+lmodel <- lm(tip_profile$review_count ~ tip_profile$fans)
+lmodel2 <- lm(review_profile$review_count ~ review_profile$fans)
+```
+```{r echo=FALSE, message=FALSE}
+par(mfrow=c(1,2))
+plot(tip_profile$review_count ~ tip_profile$fans, main="TIP PROFILE", xlab="Fans", ylab="Reviews")
+abline(lmodel, col="red")
+plot(review_profile$review_count ~ review_profile$fans, main="REVIEW PROFILE", xlab="Fans", ylab="Reviews")
+abline(lmodel2, col="red")
+```
+
+#### Discussion
+###### To add more focus to the Users of these reviews and tips, we find the top 100 reviewers on trendy food places is `r mean(user_top_reviewers$Freq)` reviews and the top 100 people providing tips averages at `r mean(user_top_tipers$Freq)`.  If we look at the overall review & tip count on users that provided trendy reviews and tips, we see a significant average in the overall review counts and tips provided.  The average is almost identical with `r mean(review_profile$review_count)` average reviews and `r mean(tip_profile$review_count)` average tip posts.  This provides some insight into the group providing tips with their overall average reviews matching the group primarily doing reviews lending to the conclusion that tip posters are primarily high reviewers. 
+
+###### For the total sample set of users in the Yelp profile data, we find the average review count is only `r mean(juser$review_count)` Our trendy user population is more focused on providing feedback.  But as a result does that increase their popularity?
+
+###### Again if we look closely at the yelp profile data, there is a variety of positive enforcers for posting reviews.  For example, lets look a the *fans* attribute for our Trendy posting users.  The average number of *fans* from the total sample set of users in the Yelp profile data is `r mean(juser$fans)` a much lower figure than for our trendy reviewers `r mean(review_profile$fans)` or our tip posters `r mean(tip_profile$fans)`.  This begs the question, could their be a correlation between *fans* and our group of trendy reviewers and tip posters? Absolutely as the data shows.
+
+###### The significance to Yelp and many of their business partners is that a focused data analysis in the area of marketing to users with a high number of fans could be used to target a variety of business with the ambience attributes.  A further study to include the yelp data and data on business traffic may help to identify the income potential in targeting ads, reviews, other social media to increase a businesses success. 
